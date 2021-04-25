@@ -1,9 +1,7 @@
+import cupy as cp
 import numpy as np
 import pygame as pg
-
 import scipy.stats as st
-
-import cupy as cp
 from cupyx.scipy.ndimage import convolve
 
 
@@ -18,8 +16,8 @@ def gkern(kernlen=21, nsig=20):
 
 class SlimeWorld:
 
-    WIDTH = 800
-    HEIGHT = 800
+    WIDTH = 1400
+    HEIGHT = 1400
     cells = cp.zeros((WIDTH, HEIGHT, 3), dtype=cp.float16)
 
     trail_color = cp.array([255, 255, 255])
@@ -28,12 +26,16 @@ class SlimeWorld:
     trail_kernel = cp.array(gkern())
     trail_kernel = trail_kernel[:, :, None]
 
-    sense_dist = 5
+    sense_dist = 7
     sense_angles = [np.deg2rad(-30), 0, np.deg2rad(30)]
     turn_angle = np.deg2rad(10)
     turn_angle_random = np.deg2rad(10)
 
-    num_slimes = 20000
+    num_slimes = 150_000
+
+    #######################
+    #     Initial Pos     #
+    #######################
 
     # 1) Random start everywhere
     # slime_pos = cp.random.random((num_slimes, 2)) * cp.array([WIDTH, HEIGHT])
@@ -50,6 +52,46 @@ class SlimeWorld:
     )
 
     slime_angle = cp.random.random(num_slimes) * 2 * np.pi
+
+    #######################
+    #     Colors          #
+    #######################
+
+    # 0) Single color
+    slime_color = cp.ones((num_slimes, 3)) * cp.array([[117, 255, 255]])
+
+    # 1) Rainbow
+    # slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
+
+    # 2) RGB
+    # slime_colors = cp.array(
+    #     [
+    #         [0, 0, 255],
+    #         [0, 255, 0],
+    #         [255, 0, 0],
+    #     ]
+    # )
+    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    # slime_color = slime_colors[slime_color]
+
+    # 3) 6 colors
+    # slime_colors = cp.array(
+    #     [
+    #         [0, 0, 255],
+    #         [0, 255, 0],
+    #         [0, 255, 255],
+    #         [255, 0, 0],
+    #         [255, 0, 255],
+    #         [255, 255, 0],
+    #     ]
+    # )
+    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    # slime_color = slime_colors[slime_color]
+
+    # 4) 2 colors
+    # slime_colors = cp.array([[0, 180, 255], [0, 255, 180]])
+    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    # slime_color = slime_colors[slime_color]
 
     def initialize():
         pass
@@ -74,7 +116,7 @@ class SlimeWorld:
             out=pos[:, 1],
         )
 
-    def sense_at_angle(angle, channel=0):
+    def sense_at_angle(angle):
         sense_angle = SlimeWorld.slime_angle + angle
         sense_dir = (
             cp.array([cp.sin(sense_angle), cp.cos(sense_angle)]).T
@@ -83,7 +125,19 @@ class SlimeWorld:
         sense_pos = SlimeWorld.slime_pos + sense_dir
         SlimeWorld.clip(sense_pos)
         int_sense_pos = sense_pos.astype(int)
-        return SlimeWorld.cells[int_sense_pos[:, 0], int_sense_pos[:, 1], channel]
+        # return SlimeWorld.cells[int_sense_pos[:, 0], int_sense_pos[:, 1], 0]
+
+        # return cp.sum(
+        #     SlimeWorld.cells[int_sense_pos[:, 0], int_sense_pos[:, 1], :], axis=-1
+        # )
+
+        return -cp.sum(
+            cp.abs(
+                SlimeWorld.cells[int_sense_pos[:, 0], int_sense_pos[:, 1], :]
+                - SlimeWorld.slime_color
+            ),
+            axis=-1,
+        )
 
     def sense_and_turn():
         sensors = cp.array(
@@ -124,7 +178,7 @@ class SlimeWorld:
 
     def leave_slime_trail():
         int_pos = SlimeWorld.slime_pos.astype(int)
-        SlimeWorld.cells[int_pos[:, 0], int_pos[:, 1]] = SlimeWorld.trail_color
+        SlimeWorld.cells[int_pos[:, 0], int_pos[:, 1]] = SlimeWorld.slime_color
 
     def diffuse_slime_trail():
         cp.multiply(
@@ -177,13 +231,21 @@ class Renderer:
 
     def render_loop():
 
+        waiting = True
+        while waiting:
+            for event in pg.event.get():
+                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                    waiting = False
+
         # game loop
         running = True
         while running:
             Renderer.clock.tick(60)
 
             for event in pg.event.get():
-                if event.type == pg.QUIT:
+                if event.type == pg.QUIT or (
+                    event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
+                ):
                     running = False
 
             SlimeWorld.tick()
