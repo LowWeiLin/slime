@@ -34,7 +34,21 @@ class SlimeWorld:
     turn_angle_random = np.deg2rad(10)
 
     num_slimes = 20000
-    slime_pos = cp.random.random((num_slimes, 2)) * cp.array([WIDTH, HEIGHT])
+
+    # 1) Random start everywhere
+    # slime_pos = cp.random.random((num_slimes, 2)) * cp.array([WIDTH, HEIGHT])
+    # 2) Random start in square in middle
+    # slime_pos = cp.random.random((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 3) + (
+    #     cp.array([WIDTH, HEIGHT]) / 3
+    # )
+    # 3) Start in middle point
+    # slime_pos = cp.ones((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 2)
+    # 4) Random start in circle
+    temp = cp.random.random(num_slimes) * 2 * np.pi
+    slime_pos = (cp.array([cp.sin(temp), cp.cos(temp)]).T * 300) + (
+        cp.array([WIDTH, HEIGHT]) / 2
+    )
+
     slime_angle = cp.random.random(num_slimes) * 2 * np.pi
 
     def initialize():
