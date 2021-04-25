@@ -16,22 +16,22 @@ def gkern(kernlen=21, nsig=20):
 
 class SlimeWorld:
 
-    WIDTH = 1400
-    HEIGHT = 1400
+    WIDTH = 1300
+    HEIGHT = 1300
     cells = cp.zeros((WIDTH, HEIGHT, 3), dtype=cp.float16)
 
     trail_color = cp.array([255, 255, 255])
-    trail_reduction_factor = 0.99
+    trail_reduction_factor = 0.97
     trail_gaussian_filer_sigma = 0.4
     trail_kernel = cp.array(gkern())
     trail_kernel = trail_kernel[:, :, None]
 
-    sense_dist = 7
+    sense_dist = 17
     sense_angles = [np.deg2rad(-30), 0, np.deg2rad(30)]
     turn_angle = np.deg2rad(10)
     turn_angle_random = np.deg2rad(10)
 
-    num_slimes = 150_000
+    num_slimes = 1_000_000
 
     #######################
     #     Initial Pos     #
@@ -58,7 +58,7 @@ class SlimeWorld:
     #######################
 
     # 0) Single color
-    slime_color = cp.ones((num_slimes, 3)) * cp.array([[117, 255, 255]])
+    # slime_color = cp.ones((num_slimes, 3)) * cp.array([[117, 255, 255]])
 
     # 1) Rainbow
     # slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
@@ -89,9 +89,9 @@ class SlimeWorld:
     # slime_color = slime_colors[slime_color]
 
     # 4) 2 colors
-    # slime_colors = cp.array([[0, 180, 255], [0, 255, 180]])
-    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
-    # slime_color = slime_colors[slime_color]
+    slime_colors = cp.array([[117, 255, 255], [255, 255, 117]])
+    slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    slime_color = slime_colors[slime_color]
 
     def initialize():
         pass
@@ -236,6 +236,9 @@ class Renderer:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
                     waiting = False
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    exit()
 
         # game loop
         running = True
