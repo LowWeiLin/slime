@@ -4,8 +4,12 @@ import pygame as pg
 import scipy.stats as st
 from cupyx.scipy.ndimage import convolve
 
+import ctypes
 
-def gkern(kernlen=21, nsig=20):
+ctypes.windll.user32.SetProcessDPIAware()
+
+
+def gkern(kernlen=9, nsig=9):
     """Returns a 2D Gaussian kernel."""
 
     x = np.linspace(-nsig, nsig, kernlen + 1)
@@ -16,13 +20,11 @@ def gkern(kernlen=21, nsig=20):
 
 class SlimeWorld:
 
-    WIDTH = 1300
-    HEIGHT = 1300
+    WIDTH = 1920
+    HEIGHT = 1080
     cells = cp.zeros((WIDTH, HEIGHT, 3), dtype=cp.float16)
 
-    trail_color = cp.array([255, 255, 255])
-    trail_reduction_factor = 0.97
-    trail_gaussian_filer_sigma = 0.4
+    trail_reduction_factor = 0.95
     trail_kernel = cp.array(gkern())
     trail_kernel = trail_kernel[:, :, None]
 
@@ -31,7 +33,9 @@ class SlimeWorld:
     turn_angle = np.deg2rad(10)
     turn_angle_random = np.deg2rad(10)
 
-    num_slimes = 1_000_000
+    num_slimes = 300_000
+
+    slime_angle = cp.random.random(num_slimes) * 2 * np.pi
 
     #######################
     #     Initial Pos     #
@@ -40,18 +44,16 @@ class SlimeWorld:
     # 1) Random start everywhere
     # slime_pos = cp.random.random((num_slimes, 2)) * cp.array([WIDTH, HEIGHT])
     # 2) Random start in square in middle
-    # slime_pos = cp.random.random((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 3) + (
-    #     cp.array([WIDTH, HEIGHT]) / 3
-    # )
+    slime_pos = cp.random.random((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 3) + (
+        cp.array([WIDTH, HEIGHT]) / 3
+    )
     # 3) Start in middle point
     # slime_pos = cp.ones((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 2)
     # 4) Random start in circle
-    temp = cp.random.random(num_slimes) * 2 * np.pi
-    slime_pos = (cp.array([cp.sin(temp), cp.cos(temp)]).T * 300) + (
-        cp.array([WIDTH, HEIGHT]) / 2
-    )
-
-    slime_angle = cp.random.random(num_slimes) * 2 * np.pi
+    # temp = cp.random.random(num_slimes) * 2 * np.pi
+    # slime_pos = (cp.array([cp.sin(temp), cp.cos(temp)]).T * 300) + (
+    #     cp.array([WIDTH, HEIGHT]) / 2
+    # )
 
     #######################
     #     Colors          #
@@ -61,7 +63,7 @@ class SlimeWorld:
     # slime_color = cp.ones((num_slimes, 3)) * cp.array([[117, 255, 255]])
 
     # 1) Rainbow
-    # slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
+    slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
 
     # 2) RGB
     # slime_colors = cp.array(
@@ -89,9 +91,16 @@ class SlimeWorld:
     # slime_color = slime_colors[slime_color]
 
     # 4) 2 colors
-    slime_colors = cp.array([[117, 255, 255], [255, 255, 117]])
-    slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
-    slime_color = slime_colors[slime_color]
+    # slime_colors = cp.array([[117, 255, 255], [255, 255, 117]])
+    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    # slime_color = slime_colors[slime_color]
+
+    #######################
+    #     Avoid me        #
+    #######################
+    avoid = False
+    avoid_pos = cp.array([WIDTH, HEIGHT]) / 4
+    avoid_dist = 200
 
     def initialize():
         pass
@@ -101,6 +110,18 @@ class SlimeWorld:
         SlimeWorld.leave_slime_trail()
         SlimeWorld.diffuse_slime_trail()
         SlimeWorld.sense_and_turn()
+        SlimeWorld.avoid_point()
+
+    def avoid_point():
+        if not SlimeWorld.avoid:
+            return
+        diff_from_avoid_pos = SlimeWorld.slime_pos - SlimeWorld.avoid_pos
+        dist_from_avoid_pos = cp.linalg.norm(diff_from_avoid_pos, axis=-1)
+        angle_to_avoid_pos = cp.arctan2(
+            diff_from_avoid_pos[:, 0], diff_from_avoid_pos[:, 1]
+        )
+        mask = dist_from_avoid_pos < SlimeWorld.avoid_dist
+        SlimeWorld.slime_angle[mask] = angle_to_avoid_pos[mask]
 
     def clip(pos):
         cp.clip(
@@ -200,7 +221,10 @@ class Renderer:
 
         # initialize pygame
         pg.init()
-        Renderer.screen = pg.display.set_mode((Renderer.WIDTH, Renderer.HEIGHT))
+        Renderer.screen = pg.display.set_mode(
+            (Renderer.WIDTH, Renderer.HEIGHT),
+            pg.DOUBLEBUF | pg.NOFRAME | pg.SCALED,
+        )
         Renderer.clock = pg.time.Clock()
         Renderer.create_fonts([32, 16, 14, 8])
 
@@ -236,7 +260,9 @@ class Renderer:
             for event in pg.event.get():
                 if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
                     waiting = False
-                if event.type == pg.QUIT:
+                if event.type == pg.QUIT or (
+                    event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
+                ):
                     pg.quit()
                     exit()
 
@@ -250,6 +276,11 @@ class Renderer:
                     event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
                 ):
                     running = False
+
+            # Click to avoid
+            SlimeWorld.avoid = pg.mouse.get_pressed()[0]
+            x, y = pg.mouse.get_pos()
+            SlimeWorld.avoid_pos = cp.array([x, y])
 
             SlimeWorld.tick()
 
