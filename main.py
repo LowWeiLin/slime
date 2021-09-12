@@ -44,16 +44,16 @@ class SlimeWorld:
     # 1) Random start everywhere
     # slime_pos = cp.random.random((num_slimes, 2)) * cp.array([WIDTH, HEIGHT])
     # 2) Random start in square in middle
-    slime_pos = cp.random.random((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 3) + (
-        cp.array([WIDTH, HEIGHT]) / 3
-    )
+    # slime_pos = cp.random.random((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 3) + (
+    #     cp.array([WIDTH, HEIGHT]) / 3
+    # )
     # 3) Start in middle point
     # slime_pos = cp.ones((num_slimes, 2)) * (cp.array([WIDTH, HEIGHT]) / 2)
     # 4) Random start in circle
-    # temp = cp.random.random(num_slimes) * 2 * np.pi
-    # slime_pos = (cp.array([cp.sin(temp), cp.cos(temp)]).T * 300) + (
-    #     cp.array([WIDTH, HEIGHT]) / 2
-    # )
+    temp = cp.random.random(num_slimes) * 2 * np.pi
+    slime_pos = (cp.array([cp.sin(temp), cp.cos(temp)]).T * 300) + (
+        cp.array([WIDTH, HEIGHT]) / 2
+    )
 
     #######################
     #     Colors          #
@@ -63,7 +63,7 @@ class SlimeWorld:
     # slime_color = cp.ones((num_slimes, 3)) * cp.array([[117, 255, 255]])
 
     # 1) Rainbow
-    slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
+    # slime_color = cp.random.random((num_slimes, 3)) * (255 * 0.7) + (255 * 0.3)
 
     # 2) RGB
     # slime_colors = cp.array(
@@ -91,9 +91,9 @@ class SlimeWorld:
     # slime_color = slime_colors[slime_color]
 
     # 4) 2 colors
-    # slime_colors = cp.array([[117, 255, 255], [255, 255, 117]])
-    # slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
-    # slime_color = slime_colors[slime_color]
+    slime_colors = cp.array([[117, 255, 255], [255, 255, 117]])
+    slime_color = (cp.random.random(num_slimes) * slime_colors.shape[0]).astype(int)
+    slime_color = slime_colors[slime_color]
 
     #######################
     #     Avoid me        #
